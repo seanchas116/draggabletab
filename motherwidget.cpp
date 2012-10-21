@@ -5,23 +5,22 @@
 #include "motherwidget.h"
 
 MotherWidget::MotherWidget(QWidget *parent) :
-	QWidget(parent),
-	_leftWidgetCount(0)
+	QWidget(parent)
 {
-	_splitter = new QSplitter(Qt::Horizontal);
+	_mainSplitter = new QSplitter(Qt::Horizontal);
 	
 	QHBoxLayout *layout = new QHBoxLayout;
-	layout->addWidget(_splitter);
+	layout->addWidget(_mainSplitter);
 	layout->setContentsMargins(0, 0, 0, 0);
 	setLayout(layout);
 	
-	_leftSplitter = new QSplitter(Qt::Vertical);
-	_leftSplitter->setVisible(false);
-	
 	_centralWidget = new QWidget;
 	
-	_splitter->addWidget(_leftSplitter);
-	_splitter->addWidget(_centralWidget);
+	_mainSplitter->addWidget(_centralWidget);
+	
+	_mainSplitter->setStretchFactor(0, 0);
+	_mainSplitter->setStretchFactor(1, 1);
+	_mainSplitter->setStretchFactor(2, 0);
 	
 	setAcceptDrops(true);
 }
@@ -34,79 +33,157 @@ void MotherWidget::dragEnterEvent(QDragEnterEvent *event)
 
 void MotherWidget::dropEvent(QDropEvent *event)
 {
-	// drop tab
-	
 	DraggableTabWidget::TabInfo tabInfo = DraggableTabWidget::decodeTabDropEvent(event);
 	if (!tabInfo.tabWidget)
 		return;
 	
-	enum TabHandling
+	dropTab(tabInfo.tabWidget, tabInfo.index, event->pos());
+	event->acceptProposedAction();
+}
+
+void MotherWidget::onTabWidgetWillBeDeleted(DraggableTabWidget *widget)
+{
+	for (QSplitter *splitter : _columnSplitterLists[Left] + _columnSplitterLists[Right])
 	{
-		NoHandling,
-		TabAppend,
-		TabPrepend,
-		NewColumn
-	} tabHandling = NoHandling;
+		if (splitter->count() == 1 && splitter->widget(0) == widget)
+		{
+			_columnSplitterLists[Left].removeAll(splitter);
+			_columnSplitterLists[Right].removeAll(splitter);
+			splitter->deleteLater();
+		}
+	}
+}
+
+void MotherWidget::dropTab(DraggableTabWidget *srcTabWidget, int srcIndex, const QPoint &pos)
+{
+	TabHandling tabHandling;
+	Direction dir;
+	int columnIndex;
 	
-	if (_leftSplitter->isVisible())
-	{
-		QRect prependRect(0, 0, _leftSplitter->width(), InsertDistance);
-		QRect appendRect(0, height() - InsertDistance, _leftSplitter->width(), InsertDistance);
-		
-		if (prependRect.contains(event->pos()))
-			tabHandling = TabPrepend;
-		
-		if (appendRect.contains(event->pos()))
-			tabHandling = TabAppend;
-	}
-	else
-	{
-		QRect insertRect(0, 0, InsertDistance, height());
-		if (insertRect.contains(event->pos()))
-			tabHandling = NewColumn;
-	}
+	getTabHandling(pos, tabHandling, dir, columnIndex);
 	
 	if (tabHandling == NoHandling)
 		return;
 	
-	DraggableTabWidget *tabWidget = new DraggableTabWidget;
-	DraggableTabWidget::moveTab(tabInfo.tabWidget, tabInfo.index, tabWidget, 0);
+	DraggableTabWidget *dstTabWidget = new DraggableTabWidget;
+	DraggableTabWidget::moveTab(srcTabWidget, srcIndex, dstTabWidget, 0);
 	
-	switch (tabHandling)
+	if (tabHandling == NewColumn)
 	{
-		case TabPrepend:
+		QSplitter *splitter = new QSplitter(Qt::Vertical);
+		splitter->addWidget(dstTabWidget);
+		int mainIndex = dir == Left ? columnIndex : (_mainSplitter->count() - columnIndex);
+		_mainSplitter->insertWidget(mainIndex, splitter);
+		_columnSplitterLists[dir] << splitter;
+	}
+	else
+	{
+		QSplitter *splitter = _columnSplitterLists[dir].at(columnIndex);
+		switch (tabHandling)
 		{
-			_leftSplitter->insertWidget(0, tabWidget);
-			break;
-		}
-		case TabAppend:
-		{
-			_leftSplitter->addWidget(tabWidget);
-			break;
-		}
-		case NewColumn:
-		{
-			_leftSplitter->addWidget(tabWidget);
-			_leftSplitter->setVisible(true);
-			break;
-		}
-		default:
-		{
-			tabWidget->deleteLater();
-			return;
+			default:
+			case TabPrepend:
+				splitter->insertWidget(0, dstTabWidget);
+				break;
+			case TabAppend:
+				splitter->addWidget(dstTabWidget);
+				break;
 		}
 	}
 	
-	_leftWidgetCount++;
-	connect(tabWidget, SIGNAL(willBeDeleted()), this, SLOT(onTabWidgetWillBeDeleted()));
-	event->acceptProposedAction();
+	connect(dstTabWidget, SIGNAL(willBeDeleted(DraggableTabWidget*)), this, SLOT(onTabWidgetWillBeDeleted(DraggableTabWidget*)));
 }
 
-void MotherWidget::onTabWidgetWillBeDeleted()
+MotherWidget::Direction MotherWidget::insertionDirection(QSplitter *splitter, const QPoint &pos)
 {
-	if (_leftWidgetCount)
-		_leftWidgetCount--;
+	auto isInInsertDist = [](int x, int border)->bool { return border - InsertDistance <= x && x < border + InsertDistance; };
 	
-	if (_leftWidgetCount == 0)
-		_leftSplitter->setVisible(false);
+	QRect geom = splitter->geometry();
+	int left = geom.left();
+	int rightEnd = geom.left() + geom.width();
+	int top = geom.top();
+	int bottomEnd = geom.top() + geom.height();
+	
+	int x = pos.x();
+	int y = pos.y();
+	
+	if (left <= x && x < rightEnd)
+	{
+		if (isInInsertDist(top, y))
+			return Top;
+		
+		if (isInInsertDist(bottomEnd, y))
+			return Bottom;
+	}
+	
+	if (top <= y && y < bottomEnd)
+	{
+		if (isInInsertDist(left, x))
+			return Left;
+		
+		if (isInInsertDist(rightEnd, x))
+			return Right;
+	}
+	
+	return NoDirection;
 }
+
+void MotherWidget::getTabHandling(const QPoint &dropPos, TabHandling &handling, Direction &columnDirection, int &index)
+{
+	for (int i = 0; i < 2; ++i)
+	{
+		columnDirection = i == 0 ? Left : Right;
+		
+		if (_columnSplitterLists[columnDirection].size() == 0)
+		{
+			int distFromSide = columnDirection == Left ? dropPos.x() : (width() - dropPos.x());
+			
+			if (distFromSide < InsertDistance)
+			{
+				handling = NewColumn;
+				index = 0;
+				return;
+			}
+		}
+		else
+		{
+			for (int i = 0; i < _columnSplitterLists[columnDirection].size(); ++i)
+			{
+				QSplitter *splitter = _columnSplitterLists[columnDirection].at(i);
+				Direction dir = insertionDirection(splitter, dropPos);
+				
+				if (columnDirection == Right)
+				{
+					if (dir == Left)
+						dir = Right;
+					else if (dir == Right)
+						dir = Left;
+				}
+				
+				switch (dir)
+				{
+					default:
+						break;
+					case Right:
+						handling = NewColumn;
+						index = i+1;
+						return;
+					case Top:
+						handling = TabPrepend;
+						index = i;
+						return;
+					case Bottom:
+						handling = TabAppend;
+						index = i;
+						return;
+					case Left:
+						handling = NewColumn;
+						index = i;
+						return;
+				}
+			}
+		}
+	}
+	handling = NoHandling;
+}
+

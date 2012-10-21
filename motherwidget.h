@@ -4,6 +4,7 @@
 #include <QWidget>
 
 class QSplitter;
+class DraggableTabWidget;
 
 class MotherWidget : public QWidget
 {
@@ -21,22 +22,45 @@ signals:
 	
 public slots:
 	
-private slots:
-	
-	void onTabWidgetWillBeDeleted();
-	
 private:
 	
 	enum
 	{
-		InsertDistance = 20
+		InsertDistance = 20,
+		DirectionCount = 2
 	};
 	
-	QSplitter *_leftSplitter;
-	int _leftWidgetCount;
-	QWidget *_centralWidget;
+	enum TabHandling
+	{
+		NoHandling,
+		TabAppend,
+		TabPrepend,
+		NewColumn
+	};
 	
-	QSplitter *_splitter;
+	enum Direction
+	{
+		Left = 0,
+		Right = 1,
+		Top = 2,
+		Bottom = 3,
+		NoDirection = -1
+	};
+	
+	void dropTab(DraggableTabWidget *tabWidget, int index, const QPoint &pos);
+	void getTabHandling(const QPoint &dropPos, TabHandling &handling, Direction &columnDirection, int &index);
+	Direction insertionDirection(QSplitter *splitter, const QPoint &pos);
+	
+private slots:
+	
+	void onTabWidgetWillBeDeleted(DraggableTabWidget *widget);
+	
+private:
+	
+	QList<QSplitter *> _columnSplitterLists[DirectionCount];
+	
+	QWidget *_centralWidget = 0;
+	QSplitter *_mainSplitter = 0;
 };
 
 #endif // MOTHERWIDGET_H

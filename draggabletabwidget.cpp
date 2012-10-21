@@ -49,16 +49,26 @@ void DraggableTabWidget::deleteIfEmpty()
 {
 	if (count() == 0)
 	{
-		emit willBeDeleted();
+		emit willBeDeleted(this);
 		deleteLater();
 	}
+}
+
+DraggableTabWidget *DraggableTabWidget::createAnother(QWidget *parent)
+{
+	return new DraggableTabWidget(parent);
+}
+
+bool DraggableTabWidget::isInsertable(QWidget *widget)
+{
+	Q_UNUSED(widget)
+	return true;
 }
 
 
 DraggableTabBar::DraggableTabBar(DraggableTabWidget *tabWidget, QWidget *parent) :
 	QTabBar(parent),
-	_tabWidget(tabWidget),
-	_isStartingDrag(false)
+	_tabWidget(tabWidget)
 {
 	setAcceptDrops(true);
 }
@@ -141,7 +151,7 @@ void DraggableTabBar::mouseMoveEvent(QMouseEvent *event)
 	{
 		QRect newGeometry(QCursor::pos() - offset, tabWidget()->geometry().size());
 		
-		DraggableTabWidget *newTabWidget = new DraggableTabWidget;
+		DraggableTabWidget *newTabWidget = _tabWidget->createAnother();
 		DraggableTabWidget::moveTab(_tabWidget, index, newTabWidget, 0);
 		
 		newTabWidget->setGeometry(newGeometry);

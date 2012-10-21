@@ -20,6 +20,5 @@ HEADERS  += \
     draggabletabwidget.h \
     motherwidget.h
 
-FORMS    +=
-
+QMAKE_CXXFLAGS += -std=c++11
 

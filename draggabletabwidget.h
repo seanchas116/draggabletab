@@ -28,13 +28,19 @@ public:
 	static TabInfo decodeTabDropEvent(QDropEvent *event);
 	static bool eventIsTabDrag(QDragEnterEvent *event);
 	
+	virtual DraggableTabWidget *createAnother(QWidget *parent = 0);
+	
 signals:
 	
-	void willBeDeleted();
+	void willBeDeleted(DraggableTabWidget *widget);
 	
 public slots:
 	
 	void deleteIfEmpty();
+	
+protected:
+	
+	virtual bool isInsertable(QWidget *widget);
 };
 
 class DraggableTabBar : public QTabBar
@@ -58,8 +64,8 @@ private:
 	
 	int insertionIndexAt(const QPoint &pos);
 	
-	DraggableTabWidget *_tabWidget;
-	bool _isStartingDrag;
+	DraggableTabWidget *_tabWidget = 0;
+	bool _isStartingDrag = false;
 	QPoint _dragStartPos;
 };
 
