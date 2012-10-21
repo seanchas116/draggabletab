@@ -17,10 +17,7 @@ MotherWidget::MotherWidget(QWidget *parent) :
 	_centralWidget = new QWidget;
 	
 	_mainSplitter->addWidget(_centralWidget);
-	
-	_mainSplitter->setStretchFactor(0, 0);
-	_mainSplitter->setStretchFactor(1, 1);
-	_mainSplitter->setStretchFactor(2, 0);
+	_mainSplitter->setStretchFactor(0, 1);
 	
 	setAcceptDrops(true);
 }
@@ -74,6 +71,7 @@ void MotherWidget::dropTab(DraggableTabWidget *srcTabWidget, int srcIndex, const
 		splitter->addWidget(dstTabWidget);
 		int mainIndex = dir == Left ? columnIndex : (_mainSplitter->count() - columnIndex);
 		_mainSplitter->insertWidget(mainIndex, splitter);
+		_mainSplitter->setStretchFactor(mainIndex, 0);
 		_columnSplitterLists[dir] << splitter;
 	}
 	else
