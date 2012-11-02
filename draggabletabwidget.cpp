@@ -9,6 +9,35 @@ DockTabWidget::DockTabWidget(QWidget *parent) :
 {
 	setTabBar(new DockTabBar(this));
 	setDocumentMode(true);
+	setAcceptDrops(true);
+}
+
+DockTabWidget::DockTabWidget(DockTabWidget *other, QWidget *parent) :
+	DockTabWidget(parent)
+{
+	setFloatingBaseWidget(other->floatingBaseWidget());
+	setFloatingEnabled(other->isFloatingEnabled());
+	setGeometry(other->geometry());
+}
+
+void DockTabWidget::setFloatingBaseWidget(QWidget *widget)
+{
+	_floatingBaseWidget = widget;
+	if (_floatingEnabled && parentWidget() == 0)
+		setParent(widget);
+}
+
+void DockTabWidget::setFloatingEnabled(bool x)
+{
+	_floatingEnabled = x;
+	
+	if (parent() == 0)
+	{
+		if (x)
+			setWindowFlags(Qt::Tool);
+		else
+			setWindowFlags(Qt::Window);
+	}
 }
 
 void DockTabWidget::moveTab(DockTabWidget *source, int sourceIndex, DockTabWidget *dest, int destIndex)
@@ -61,7 +90,7 @@ void DockTabWidget::deleteIfEmpty()
 
 DockTabWidget *DockTabWidget::createAnother(QWidget *parent)
 {
-	return new DockTabWidget(parent);
+	return new DockTabWidget(this, parent);
 }
 
 bool DockTabWidget::isInsertable(QWidget *widget)
@@ -154,8 +183,6 @@ void DockTabBar::mouseMoveEvent(QMouseEvent *event)
 	
 	if (dropAction != Qt::MoveAction)	// drop is not accepted
 	{
-		QRect newGeometry(QCursor::pos() - offset, tabWidget()->geometry().size());
-		
 		DockTabWidget *newTabWidget = _tabWidget->createAnother();
 		if (!newTabWidget->isInsertable(_tabWidget, index))
 		{
@@ -165,6 +192,8 @@ void DockTabBar::mouseMoveEvent(QMouseEvent *event)
 		
 		DockTabWidget::moveTab(_tabWidget, index, newTabWidget, 0);
 		
+		QRect newGeometry = newTabWidget->geometry();
+		newGeometry.moveTopLeft(QCursor::pos() - offset);
 		newTabWidget->setGeometry(newGeometry);
 		newTabWidget->show();
 	}

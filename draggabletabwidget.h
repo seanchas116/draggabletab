@@ -15,9 +15,22 @@ public:
 	
 	explicit DockTabWidget(QWidget *parent = 0);
 	
+	/**
+	 * Creates a DockTabWidget copying other's DockTabWidget specific settings.
+	 * @param other
+	 * @param parent
+	 */
+	DockTabWidget(DockTabWidget *other, QWidget *parent = 0);
+	
 	static void moveTab(DockTabWidget *source, int sourceIndex, DockTabWidget *dest, int destIndex);
 	static void decodeTabDropEvent(QDropEvent *event, DockTabWidget **p_tabWidget, int *p_index);
 	static bool eventIsTabDrag(QDragEnterEvent *event);
+	
+	void setFloatingBaseWidget(QWidget *widget);
+	QWidget *floatingBaseWidget() { return _floatingBaseWidget; }
+	
+	void setFloatingEnabled(bool x);
+	bool isFloatingEnabled() const { return _floatingEnabled; }
 	
 	virtual bool isInsertable(QWidget *widget);
 	bool isInsertable(DockTabWidget *other, int index) { return isInsertable(other->widget(index)); }
@@ -31,7 +44,10 @@ public slots:
 	
 	void deleteIfEmpty();
 	
-protected:
+private:
+	
+	QWidget *_floatingBaseWidget = 0;
+	bool _floatingEnabled = false;
 };
 
 class DockTabBar : public QTabBar

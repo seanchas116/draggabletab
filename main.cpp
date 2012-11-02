@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
 	tabWidget->addTab(new QLabel("tab2"), "tab2");
 	tabWidget->addTab(new QLabel("tab3"), "tab3");
 	
+	tabWidget->setFloatingEnabled(true);
 	tabWidget->show();
 	
 	DockTabMotherWidget *motherWidget = new DockTabMotherWidget;

@@ -110,7 +110,7 @@ bool DockTabMotherWidget::dropTab(DockTabWidget *tabWidget, int index, const QPo
 	if (!area.isValid())
 		return false;
 	
-	auto newTabWidget = new DockTabWidget;
+	auto newTabWidget = tabWidget->createAnother();
 	DockTabWidget::moveTab(tabWidget, index, newTabWidget, 0);
 	
 	if (insertTabWidget(newTabWidget, area))
@@ -341,7 +341,6 @@ void DockTabMotherWidget::dropEvent(QDropEvent *event)
 		}
 	}
 	event->setDropAction(Qt::IgnoreAction);
-	event->acceptProposedAction();
 }
 
 void DockTabMotherWidget::onTabWidgetWillBeDeleted(DockTabWidget *widget)
