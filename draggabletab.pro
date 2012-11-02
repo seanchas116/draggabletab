@@ -13,12 +13,12 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-    draggabletabwidget.cpp \
-    motherwidget.cpp
+    docktabwidget.cpp \
+    docktabmotherwidget.cpp
 
 HEADERS  += \
-    draggabletabwidget.h \
-    motherwidget.h
+    docktabwidget.h \
+    docktabmotherwidget.h
 
 QMAKE_CXXFLAGS += -std=c++11
 

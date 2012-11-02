@@ -1,6 +1,6 @@
 #include <QtGui>
 
-#include "draggabletabwidget.h"
+#include "docktabwidget.h"
 
 #define MIMETYPE_TABINDEX "x-paintfield-tabindex"
 
@@ -17,7 +17,7 @@ DockTabWidget::DockTabWidget(DockTabWidget *other, QWidget *parent) :
 {
 	setFloatingBaseWidget(other->floatingBaseWidget());
 	setFloatingEnabled(other->isFloatingEnabled());
-	setGeometry(other->geometry());
+	resize(other->size());
 }
 
 void DockTabWidget::setFloatingBaseWidget(QWidget *widget)

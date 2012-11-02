@@ -1,8 +1,8 @@
 #include <QtGui>
 
-#include "draggabletabwidget.h"
+#include "docktabwidget.h"
 
-#include "motherwidget.h"
+#include "docktabmotherwidget.h"
 
 QPoint mapToAncestor(QWidget *ancestor, QWidget *widget, const QPoint &pos)
 {
@@ -155,7 +155,7 @@ DockTabMotherWidget::TabWidgetArea DockTabMotherWidget::dropArea(const QPoint &p
 			}
 		}
 		
-		QRect rect = splittersRect(dir);
+		QRect rect = splittersRect(dir).adjusted(-insertDistance(), -insertDistance(), insertDistance(), insertDistance());
 		if (rect.contains(pos))
 		{
 			TabWidgetArea area = dropAreaAt(pos, dir);
