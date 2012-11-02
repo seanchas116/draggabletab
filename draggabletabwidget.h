@@ -5,52 +5,43 @@
 #include <QTabWidget>
 
 
-class DraggableTabBar;
+class DockTabBar;
 
-class DraggableTabWidget : public QTabWidget
+class DockTabWidget : public QTabWidget
 {
 	Q_OBJECT
-	friend class DraggableTabBar;
+	friend class DockTabBar;
 public:
 	
-	struct TabInfo
-	{
-		TabInfo(int index, DraggableTabWidget *tabWidget) : index(index), tabWidget(tabWidget) {}
-		
-		int index;
-		DraggableTabWidget *tabWidget;
-	};
+	explicit DockTabWidget(QWidget *parent = 0);
 	
-	explicit DraggableTabWidget(QWidget *parent = 0);
-	
-	static void moveTab(DraggableTabWidget *source, int sourceIndex, DraggableTabWidget *dest, int destIndex);
-	static void moveTab(const TabInfo &source, const TabInfo &dest) { moveTab(source.tabWidget, source.index, dest.tabWidget, dest.index); }
-	static TabInfo decodeTabDropEvent(QDropEvent *event);
+	static void moveTab(DockTabWidget *source, int sourceIndex, DockTabWidget *dest, int destIndex);
+	static void decodeTabDropEvent(QDropEvent *event, DockTabWidget **p_tabWidget, int *p_index);
 	static bool eventIsTabDrag(QDragEnterEvent *event);
 	
-	virtual DraggableTabWidget *createAnother(QWidget *parent = 0);
+	virtual bool isInsertable(QWidget *widget);
+	bool isInsertable(DockTabWidget *other, int index) { return isInsertable(other->widget(index)); }
+	virtual DockTabWidget *createAnother(QWidget *parent = 0);
 	
 signals:
 	
-	void willBeDeleted(DraggableTabWidget *widget);
+	void willBeAutomaticallyDeleted(DockTabWidget *widget);
 	
 public slots:
 	
 	void deleteIfEmpty();
 	
 protected:
-	
-	virtual bool isInsertable(QWidget *widget);
 };
 
-class DraggableTabBar : public QTabBar
+class DockTabBar : public QTabBar
 {
 	Q_OBJECT
 public:
 	
-	DraggableTabBar(DraggableTabWidget *tabWidget, QWidget *parent = 0);
+	DockTabBar(DockTabWidget *tabWidget, QWidget *parent = 0);
 	
-	DraggableTabWidget *tabWidget() { return _tabWidget; }
+	DockTabWidget *tabWidget() { return _tabWidget; }
 	
 protected:
 	
@@ -64,7 +55,7 @@ private:
 	
 	int insertionIndexAt(const QPoint &pos);
 	
-	DraggableTabWidget *_tabWidget = 0;
+	DockTabWidget *_tabWidget = 0;
 	bool _isStartingDrag = false;
 	QPoint _dragStartPos;
 };

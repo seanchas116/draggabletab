@@ -4,14 +4,14 @@
 
 #define MIMETYPE_TABINDEX "x-paintfield-tabindex"
 
-DraggableTabWidget::DraggableTabWidget(QWidget *parent) :
+DockTabWidget::DockTabWidget(QWidget *parent) :
 	QTabWidget(parent)
 {
-	setTabBar(new DraggableTabBar(this));
+	setTabBar(new DockTabBar(this));
 	setDocumentMode(true);
 }
 
-void DraggableTabWidget::moveTab(DraggableTabWidget *source, int sourceIndex, DraggableTabWidget *dest, int destIndex)
+void DockTabWidget::moveTab(DockTabWidget *source, int sourceIndex, DockTabWidget *dest, int destIndex)
 {
 	if (source == dest && sourceIndex < destIndex)
 		destIndex--;
@@ -25,11 +25,15 @@ void DraggableTabWidget::moveTab(DraggableTabWidget *source, int sourceIndex, Dr
 	dest->setCurrentIndex(destIndex);
 }
 
-DraggableTabWidget::TabInfo DraggableTabWidget::decodeTabDropEvent(QDropEvent *event)
+void DockTabWidget::decodeTabDropEvent(QDropEvent *event, DockTabWidget **p_tabWidget, int *p_index)
 {
-	DraggableTabBar *tabBar = qobject_cast<DraggableTabBar *>(event->source());
+	DockTabBar *tabBar = qobject_cast<DockTabBar *>(event->source());
 	if (!tabBar)
-		return TabInfo(0, 0);
+	{
+		*p_tabWidget = nullptr;
+		*p_index = 0;
+		return;
+	}
 	
 	QByteArray data = event->mimeData()->data(MIMETYPE_TABINDEX);
 	QDataStream stream(&data, QIODevice::ReadOnly);
@@ -37,43 +41,44 @@ DraggableTabWidget::TabInfo DraggableTabWidget::decodeTabDropEvent(QDropEvent *e
 	int index;
 	stream >> index;
 	
-	return TabInfo(index, tabBar->tabWidget());
+	*p_tabWidget = tabBar->tabWidget();
+	*p_index = index;
 }
 
-bool DraggableTabWidget::eventIsTabDrag(QDragEnterEvent *event)
+bool DockTabWidget::eventIsTabDrag(QDragEnterEvent *event)
 {
-	return event->mimeData()->hasFormat(MIMETYPE_TABINDEX) && qobject_cast<DraggableTabBar *>(event->source());
+	return event->mimeData()->hasFormat(MIMETYPE_TABINDEX) && qobject_cast<DockTabBar *>(event->source());
 }
 
-void DraggableTabWidget::deleteIfEmpty()
+void DockTabWidget::deleteIfEmpty()
 {
 	if (count() == 0)
 	{
-		emit willBeDeleted(this);
+		emit willBeAutomaticallyDeleted(this);
 		deleteLater();
 	}
 }
 
-DraggableTabWidget *DraggableTabWidget::createAnother(QWidget *parent)
+DockTabWidget *DockTabWidget::createAnother(QWidget *parent)
 {
-	return new DraggableTabWidget(parent);
+	return new DockTabWidget(parent);
 }
 
-bool DraggableTabWidget::isInsertable(QWidget *widget)
+bool DockTabWidget::isInsertable(QWidget *widget)
 {
 	Q_UNUSED(widget)
 	return true;
 }
 
 
-DraggableTabBar::DraggableTabBar(DraggableTabWidget *tabWidget, QWidget *parent) :
+DockTabBar::DockTabBar(DockTabWidget *tabWidget, QWidget *parent) :
 	QTabBar(parent),
 	_tabWidget(tabWidget)
 {
 	setAcceptDrops(true);
 }
 
-int DraggableTabBar::insertionIndexAt(const QPoint &pos)
+int DockTabBar::insertionIndexAt(const QPoint &pos)
 {
 	int index = count();
 	for (int i = 0; i < count(); ++i)
@@ -95,7 +100,7 @@ int DraggableTabBar::insertionIndexAt(const QPoint &pos)
 	return index;
 }
 
-void DraggableTabBar::mousePressEvent(QMouseEvent *event)
+void DockTabBar::mousePressEvent(QMouseEvent *event)
 {
 	if (event->button() == Qt::LeftButton)
 	{
@@ -105,7 +110,7 @@ void DraggableTabBar::mousePressEvent(QMouseEvent *event)
 	QTabBar::mousePressEvent(event);
 }
 
-void DraggableTabBar::mouseMoveEvent(QMouseEvent *event)
+void DockTabBar::mouseMoveEvent(QMouseEvent *event)
 {
 	if (!_isStartingDrag)
 		return;
@@ -151,8 +156,14 @@ void DraggableTabBar::mouseMoveEvent(QMouseEvent *event)
 	{
 		QRect newGeometry(QCursor::pos() - offset, tabWidget()->geometry().size());
 		
-		DraggableTabWidget *newTabWidget = _tabWidget->createAnother();
-		DraggableTabWidget::moveTab(_tabWidget, index, newTabWidget, 0);
+		DockTabWidget *newTabWidget = _tabWidget->createAnother();
+		if (!newTabWidget->isInsertable(_tabWidget, index))
+		{
+			newTabWidget->deleteLater();
+			return;
+		}
+		
+		DockTabWidget::moveTab(_tabWidget, index, newTabWidget, 0);
 		
 		newTabWidget->setGeometry(newGeometry);
 		newTabWidget->show();
@@ -162,21 +173,22 @@ void DraggableTabBar::mouseMoveEvent(QMouseEvent *event)
 	_isStartingDrag = false;
 }
 
-void DraggableTabBar::dragEnterEvent(QDragEnterEvent *event)
+void DockTabBar::dragEnterEvent(QDragEnterEvent *event)
 {
-	if (DraggableTabWidget::eventIsTabDrag(event))
+	if (DockTabWidget::eventIsTabDrag(event))
 		event->acceptProposedAction();
 }
 
-void DraggableTabBar::dropEvent(QDropEvent *event)
+void DockTabBar::dropEvent(QDropEvent *event)
 {
-	DraggableTabWidget::TabInfo oldInfo = DraggableTabWidget::decodeTabDropEvent(event);
-	if (!oldInfo.tabWidget)
-		return;
+	DockTabWidget *oldTabWidget;
+	int oldIndex;
+	DockTabWidget::decodeTabDropEvent(event, &oldTabWidget, &oldIndex);
 	
-	int newIndex = insertionIndexAt(event->pos());
-	
-	DraggableTabWidget::moveTab(oldInfo.tabWidget, oldInfo.index, _tabWidget, newIndex);
-	
-	event->acceptProposedAction();
+	if (oldTabWidget && _tabWidget->isInsertable(oldTabWidget, oldIndex))
+	{
+		int newIndex = insertionIndexAt(event->pos());
+		DockTabWidget::moveTab(oldTabWidget, oldIndex, _tabWidget, newIndex);
+		event->acceptProposedAction();
+	}
 }
